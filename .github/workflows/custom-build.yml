@@ -66,11 +66,11 @@ jobs:
         env:
           NODE_OPTIONS: --openssl-legacy-provider
 
-      - name: Save build artifacts
-        uses: actions/upload-artifact@v5
-        with:
-          name: build-output
-          path: . # 编译输出的路径
+      #- name: Save build artifacts
+      #  uses: actions/upload-artifact@v5
+      #  with:
+      #    name: build-output
+      #    path: . # 编译输出的路径
 
       - name: build win client
         run: |
@@ -97,9 +97,6 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v5
         with:
-          name: |
-            build-win
-            build-linux
           path: ./artifacts
       - name: upload and release
         uses: softprops/action-gh-release@v2
