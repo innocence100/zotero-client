@@ -66,39 +66,45 @@ jobs:
         env:
           NODE_OPTIONS: --openssl-legacy-provider
 
-      - name: build linux client
-        run: |
-          app/scripts/dir_build -p l;
-          cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
-
-      - name: 'Upload Artifact'
-        uses: actions/upload-artifact@v4
+      - name: Save build artifacts
+        uses: actions/upload-artifact@v2
         with:
-          name: linux binary
-          path: app/staging/*.zip
+          name: build-output
+          path: . # 编译输出的路径
 
       - name: build win client
         run: |
           app/scripts/dir_build -p w;
           cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
-
-      - name: 'Upload Artifact'
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v2
         with:
-          name: win binary
-          path: app/staging/*.zip
+          name: build-win
+          path: app/staging/*.zip # 编译输出的路径
+      
+      - name: build linux client
+        run: |
+          app/scripts/dir_build -p l;
+          cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-linux
+          path: app/staging/*.zip # 编译输出的路径
 
       - name: get version
         run: echo "ver=`cat version`" >> $GITHUB_ENV
 
 
-      - uses: actions/download-artifact@v5
+      - name: Download build artifacts
+        uses: actions/download-artifact@v2
         with:
-          path: app/staging/
+          name: |
+            build-win
+            build-linux
+          path: ./artifacts
       - name: upload and release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/staging/*.zip
+          files: ./artifacts
           tag_name: ${{ env.ver }}
           body: custom build zotero
         env:
