@@ -71,14 +71,30 @@ jobs:
           app/scripts/dir_build -p l;
           cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
 
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux binary
+          path: app/staging/*.zip
+
       - name: build win client
         run: |
           app/scripts/dir_build -p w;
           cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
 
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: win binary
+          path: app/staging/*.zip
+
       - name: get version
         run: echo "ver=`cat version`" >> $GITHUB_ENV
 
+
+      - uses: actions/download-artifact@v5
+        with:
+          path: app/staging/
       - name: upload and release
         uses: softprops/action-gh-release@v2
         with:
