@@ -101,7 +101,7 @@ jobs:
       - name: upload and release
         uses: softprops/action-gh-release@v2
         with:
-          files: ./artifacts
+          files: ./artifacts/*
           tag_name: ${{ env.ver }}
           body: custom build zotero
         env:
