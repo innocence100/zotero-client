@@ -88,7 +88,7 @@ jobs:
 
 
       - name: get version
-        run: echo "ver=`cat version`" >> $GITHUB_ENV
+        run: echo "ver=`cat version | sed 's/SOURCE/114514/'`" >> $GITHUB_ENV
 
       - name: upload and release
         uses: softprops/action-gh-release@v2
