@@ -76,7 +76,7 @@ jobs:
         run: |
           app/scripts/dir_build -p w;
           cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v5
         with:
           name: build-win
           path: app/staging/*.zip # 编译输出的路径
@@ -85,7 +85,7 @@ jobs:
         run: |
           app/scripts/dir_build -p l;
           cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v5
         with:
           name: build-linux
           path: app/staging/*.zip # 编译输出的路径
@@ -95,7 +95,7 @@ jobs:
 
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v5
         with:
           name: |
             build-win
