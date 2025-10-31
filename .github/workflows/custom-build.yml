@@ -75,13 +75,16 @@ jobs:
       - name: build win client
         run: |
           app/scripts/dir_build -p w;
+          ls;
+          zip -r Zotero_win-x64.zip Zotero_win-x64;
+          mv Zotero_win-x64.zip ~
       
       - name: build linux client
         run: |
           app/scripts/dir_build -p l;
-
-      - name: archive all
-        run: cd app/staging/; zip -r Zotero_win-x64.zip Zotero_win-x64;  zip -r Zotero_linux-x86_64.zip  Zotero_linux-x86_64 
+          ls;
+          zip -r Zotero_linux-x86_64.zip  Zotero_linux-x86_64;
+          mv Zotero_linux-x86_64.zip ~
 
 
       - name: get version
@@ -91,8 +94,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            app/staging/Zotero_win-x64.zip
-            app/staging/Zotero_linux-x86_64.zip
+            Zotero_win-x64.zip
+            Zotero_linux-x86_64.zip
           tag_name: ${{ env.ver }}
           body: custom build zotero
         env:
