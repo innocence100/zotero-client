@@ -84,7 +84,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: app/staging/*.zip
-          tag_name: $ver
+          tag_name: ${{ env.ver }}
           body: custom build zotero
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
