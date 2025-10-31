@@ -77,11 +77,14 @@ jobs:
       - name: archive all
         run: cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
 
+      - name: get version
+        run: echo "ver=`cat version`" >> $GITHUB_ENV
+
       - name: upload and release
         uses: softprops/action-gh-release@v2
         with:
           files: app/staging/*.zip
-          tag_name: v0.114.514
+          tag_name: $ver
           body: custom build zotero
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
