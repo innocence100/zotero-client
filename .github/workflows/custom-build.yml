@@ -48,16 +48,28 @@ jobs:
       - name: Install Node modules
         if: steps.node-cache.outputs.cache-hit != 'true'
         run: npm install
-        
+
+      - name: patch zotero
+        env:
+          HOST_DS: http://localhost:8080
+          HOST_ST: http://localhost:8081
+        run: |
+          sed -i "s#https://api.zotero.org/#$HOST_DS#g" resource/config.mjs; 
+          sed -i "s#wss://stream.zotero.org/#$HOST_ST#g" resource/config.mjs; 
+          sed -i "s#https://www.zotero.org/#$HOST_DS#g" resource/config.mjs; 
+          sed -i "s#https://zoteroproxycheck.s3.amazonaws.com/test##g" resource/config.mjs;
+
+      
       - name: Build Zotero
         run: npm run build
         # Currently necessary for pdf-worker Webpack: https://stackoverflow.com/a/69746937
         env:
           NODE_OPTIONS: --openssl-legacy-provider
-      
-      - name: cross-platform build
+
+      - name: build linux client
         run: |
           app/scripts/dir_build -p w
+          app/scripts/dir_build -p l
 
       - name: archive all
         run: cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
