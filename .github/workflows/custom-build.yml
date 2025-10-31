@@ -75,6 +75,7 @@ jobs:
       - name: build win client
         run: |
           app/scripts/dir_build -p w;
+          cd app/staging/;
           ls;
           zip -r Zotero_win-x64.zip Zotero_win-x64;
           mv Zotero_win-x64.zip ~
@@ -82,6 +83,7 @@ jobs:
       - name: build linux client
         run: |
           app/scripts/dir_build -p l;
+          cd app/staging/;
           ls;
           zip -r Zotero_linux-x86_64.zip  Zotero_linux-x86_64;
           mv Zotero_linux-x86_64.zip ~
