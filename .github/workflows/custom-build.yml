@@ -81,7 +81,7 @@ jobs:
           app/scripts/dir_build -p l;
 
       - name: archive all
-        run: cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
+        run: cd app/staging/; zip -r Zotero_win-x64.zip Zotero_win-x64;  zip -r Zotero_linux-x86_64.zip  Zotero_linux-x86_64 
 
 
       - name: get version
