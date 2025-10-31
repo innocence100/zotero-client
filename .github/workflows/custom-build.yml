@@ -68,14 +68,13 @@ jobs:
 
       - name: build linux client
         run: |
-          app/scripts/dir_build -p l
+          app/scripts/dir_build -p l;
+          cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
 
       - name: build win client
         run: |
-          app/scripts/dir_build -p w
-
-      - name: archive all
-        run: cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
+          app/scripts/dir_build -p w;
+          cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
 
       - name: get version
         run: echo "ver=`cat version`" >> $GITHUB_ENV
