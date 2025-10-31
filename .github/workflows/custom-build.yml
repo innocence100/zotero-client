@@ -58,7 +58,6 @@ jobs:
       - name: cross-platform build
         run: |
           app/scripts/dir_build -p w
-          app/scripts/dir_build -p l
 
       - name: archive all
         run: cd app/staging/; ls | xargs -I mlw zip -r mlw.zip mlw
