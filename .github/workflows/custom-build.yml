@@ -67,7 +67,7 @@ jobs:
           NODE_OPTIONS: --openssl-legacy-provider
 
       - name: Save build artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v5
         with:
           name: build-output
           path: . # 编译输出的路径
