@@ -77,14 +77,20 @@ jobs:
         run: |
           app/scripts/dir_build -p w;
           mkdir -p release;
-          zip -r release/Zotero_win-x64.zip app/staging/Zotero_win-x64;
+          cd app/staging/; 
+          zip -r Zotero_win-x64.zip Zotero_win-x64;
+          cd - ;
+          mv app/staging/Zotero_win-x64.zip release/
           ls release;
       
       - name: build linux client
         run: |
           app/scripts/dir_build -p l;
           mkdir -p release;
-          zip -r release/Zotero_linux-x86_64.zip  app/staging/Zotero_linux-x86_64;
+          cd app/staging/; 
+          zip -r Zotero_linux-x86_64.zip  Zotero_linux-x86_64;
+          cd - ;
+          mv app/staging/Zotero_linux-x86_64.zip release/
           ls release;
 
 
