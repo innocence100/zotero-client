@@ -1,0 +1,104 @@
+name: custom build
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build, Upload
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+          ref: "7.0"
+      
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          #cache: npm
+      
+      # On GitHub
+      - name: Install xvfb
+        if: env.ACT != 'true'
+        run: sudo apt update && sudo apt install -y xvfb
+      
+      # Local via act
+      - name: Install packages for act
+        if: env.ACT == 'true'
+        run: apt update && apt install -y zstd xvfb dbus-x11 libgtk-3-0 libx11-xcb1 libdbus-glib-1-2 libxt6
+      
+      - name: Cache xulrunner
+        id: xulrunner-cache
+        uses: actions/cache@v4
+        with:
+          path: app/xulrunner/firefox-x86_64
+          key: xulrunner-${{ hashFiles('app/config.sh', 'app/scripts/fetch_xulrunner') }}
+      
+      - name: Fetch xulrunner
+        if: steps.xulrunner-cache.outputs.cache-hit != 'true'
+        run: app/scripts/fetch_xulrunner -p l
+      
+      - name: Cache Node modules
+        id: node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
+        
+      - name: Install Node modules
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: patch zotero
+        env:
+          HOST_DS: http://localhost:8080
+          HOST_ST: http://localhost:8081
+        run: |
+          sed -i "s#https://api.zotero.org/#$HOST_DS#g" resource/config.js; 
+          sed -i "s#wss://stream.zotero.org/#$HOST_ST#g" resource/config.js; 
+          sed -i "s#https://www.zotero.org/#$HOST_DS#g" resource/config.js; 
+          sed -i "s#https://zoteroproxycheck.s3.amazonaws.com/test##g" resource/config.js;
+
+      
+      - name: Build Zotero
+        run: npm run build
+        # Currently necessary for pdf-worker Webpack: https://stackoverflow.com/a/69746937
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+
+      #- name: Save build artifacts
+      #  uses: actions/upload-artifact@v5
+      #  with:
+      #    name: build-output
+      #    path: . # 编译输出的路径
+
+      - name: build win client
+        run: |
+          app/scripts/dir_build -p w;
+          mkdir -p release;
+          zip -r release/Zotero_win-x64.zip app/staging/Zotero_win-x64;
+          ls release;
+      
+      - name: build linux client
+        run: |
+          app/scripts/dir_build -p l;
+          mkdir -p release;
+          zip -r release/Zotero_linux-x86_64.zip  app/staging/Zotero_linux-x86_64;
+          ls release;
+
+
+      - name: get version
+        run: echo "ver=`cat version | sed 's/SOURCE/114514/'`" >> $GITHUB_ENV
+
+      - name: upload and release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/Zotero_win-x64.zip
+            release/Zotero_linux-x86_64.zip
+          tag_name: ${{ env.ver }}
+          body: custom build zotero
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
