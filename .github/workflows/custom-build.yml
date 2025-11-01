@@ -10,7 +10,6 @@ jobs:
         with:
           submodules: recursive
           lfs: true
-          ref: "7.0"
       
       - name: Install Node
         uses: actions/setup-node@v4
