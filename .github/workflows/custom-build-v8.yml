@@ -1,4 +1,4 @@
-name: custom build v7
+name: custom build v8
 on: 
   push:
     branches:
