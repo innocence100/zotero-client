@@ -1,0 +1,97 @@
+# Sync Upstream & Auto Build
+# Designed with OpenCode AI Agent (Kimi-K2.6)
+# Features: Daily cron + manual dispatch, multi-branch sync, auto merge & push
+# Triggers: build-release.yml via push to version branches
+
+name: Sync Upstream & Auto Build
+
+on:
+  # 每天 UTC 03:00 自动检查一次
+  schedule:
+    - cron: '0 3 * * *'
+  # 允许手动指定分支触发
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to sync (e.g., 7.0, 8.0)'
+        required: true
+        default: '7.0'
+        type: choice
+        options:
+          - '7.0'
+          - '8.0'
+
+jobs:
+  sync:
+    name: Sync with upstream
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 自动同步的分支列表，在这里添加你跟踪的所有大版本
+        branch: ['7.0', '8.0']
+      fail-fast: false
+    permissions:
+      contents: write  # 允许 push 到仓库
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          # workflow_dispatch 时用手动输入，否则用 matrix
+          ref: ${{ github.event.inputs.branch || matrix.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/zotero/zotero.git
+          git fetch upstream
+
+      - name: Check for upstream updates
+        id: check
+        run: |
+          BRANCH="${{ github.event.inputs.branch || matrix.branch }}"
+          LOCAL=$(git rev-parse HEAD)
+          UPSTREAM=$(git rev-parse upstream/$BRANCH)
+
+          echo "local_sha=$LOCAL" >> "$GITHUB_OUTPUT"
+          echo "upstream_sha=$UPSTREAM" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          if [ "$LOCAL" = "$UPSTREAM" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "✅ Branch $BRANCH is up to date with upstream."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            COMMITS=$(git rev-list --count HEAD..upstream/$BRANCH)
+            echo "📥 Found $COMMITS new commit(s) on upstream/$BRANCH:"
+            git log --oneline HEAD..upstream/$BRANCH | head -10
+          fi
+
+      - name: Merge upstream changes
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          BRANCH="${{ steps.check.outputs.branch }}"
+          git merge upstream/$BRANCH --no-edit
+          echo "✅ Merged upstream/$BRANCH"
+
+      - name: Push to fork
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          BRANCH="${{ steps.check.outputs.branch }}"
+          git push origin HEAD:$BRANCH
+          echo "🚀 Pushed updated $BRANCH to fork"
+
+      - name: Summary
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          echo "### Sync Complete 🎉" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Branch**: ${{ steps.check.outputs.branch }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Previous**: \`${{ steps.check.outputs.local_sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **New**: \`${{ steps.check.outputs.upstream_sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Build triggered**: The push will auto-trigger \`build-release.yml\`" >> "$GITHUB_STEP_SUMMARY"
