@@ -1,0 +1,240 @@
+# Build All Platforms (Universal)
+# Designed with OpenCode AI Agent (Kimi-K2.6)
+# Features: Auto-detect config.* files, cross-platform sed, universal branch pattern matching
+# For: Zotero custom build across 7.0/8.0+ branches with DMG + zip release
+
+name: Build All Platforms (Universal)
+
+on:
+  push:
+    # 通配符匹配所有版本分支（如 7.0, 8.0, 9.0-beta 等）
+    branches:
+      - '[0-9].*'
+  workflow_dispatch:
+
+jobs:
+  build-linux-win:
+    name: Build Linux & Windows
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.ver }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+          # 自动匹配当前分支（7.0 或 8.0）
+          ref: ${{ github.ref_name }}
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install xvfb
+        if: env.ACT != 'true'
+        run: sudo apt update && sudo apt install -y xvfb
+
+      - name: Install packages for act
+        if: env.ACT == 'true'
+        run: apt update && apt install -y zstd xvfb dbus-x11 libgtk-3-0 libx11-xcb1 libdbus-glib-1-2 libxt6
+
+      - name: Cache xulrunner
+        id: xulrunner-cache
+        uses: actions/cache@v4
+        with:
+          path: app/xulrunner/firefox-x86_64
+          key: xulrunner-linux-${{ hashFiles('app/config.sh', 'app/scripts/fetch_xulrunner') }}
+
+      - name: Fetch xulrunner
+        if: steps.xulrunner-cache.outputs.cache-hit != 'true'
+        run: app/scripts/fetch_xulrunner -p l
+
+      - name: Cache Node modules
+        id: node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Node modules
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: Detect config file
+        id: detect-config
+        run: |
+          CONFIG_FILE=$(find resource -maxdepth 1 -name 'config.*' | head -n 1)
+          echo "Detected config file: $CONFIG_FILE"
+          echo "CONFIG_FILE=$CONFIG_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: patch zotero
+        env:
+          HOST_DS: http://localhost:8080
+          HOST_ST: http://localhost:8081
+        run: |
+          sed -i "s#https://api.zotero.org/#$HOST_DS#g" ${{ steps.detect-config.outputs.CONFIG_FILE }};
+          sed -i "s#wss://stream.zotero.org/#$HOST_ST#g" ${{ steps.detect-config.outputs.CONFIG_FILE }};
+          sed -i "s#https://www.zotero.org/#$HOST_DS#g" ${{ steps.detect-config.outputs.CONFIG_FILE }};
+          sed -i "s#https://zoteroproxycheck.s3.amazonaws.com/test##g" ${{ steps.detect-config.outputs.CONFIG_FILE }};
+
+      - name: Build Zotero
+        run: npm run build
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+
+      - name: build win client
+        run: |
+          app/scripts/dir_build -p w;
+          mkdir -p release;
+          cd app/staging/;
+          zip -r Zotero_win-x64.zip Zotero_win-x64;
+          cd - ;
+          mv app/staging/Zotero_win-x64.zip release/
+          ls release;
+
+      - name: build linux client
+        run: |
+          app/scripts/dir_build -p l;
+          mkdir -p release;
+          cd app/staging/;
+          zip -r Zotero_linux-x86_64.zip  Zotero_linux-x86_64;
+          cd - ;
+          mv app/staging/Zotero_linux-x86_64.zip release/
+          ls release;
+
+      - name: get version
+        id: version
+        run: echo "ver=$(cat version | sed 's/SOURCE/114514/')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Linux & Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-win-builds
+          path: release/*.zip
+
+  build-macos:
+    name: Build macOS DMG
+    runs-on: macos-latest
+    outputs:
+      version: ${{ steps.version.outputs.ver }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+          ref: ${{ github.ref_name }}
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Cache xulrunner (macOS)
+        id: xulrunner-cache
+        uses: actions/cache@v4
+        with:
+          path: app/xulrunner/Firefox.app
+          key: xulrunner-mac-${{ hashFiles('app/config.sh', 'app/scripts/fetch_xulrunner') }}
+
+      - name: Fetch xulrunner
+        if: steps.xulrunner-cache.outputs.cache-hit != 'true'
+        run: app/scripts/fetch_xulrunner -p m
+
+      - name: Cache Node modules
+        id: node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Node modules
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: Detect config file
+        id: detect-config
+        run: |
+          CONFIG_FILE=$(find resource -maxdepth 1 -name 'config.*' | head -n 1)
+          echo "Detected config file: $CONFIG_FILE"
+          echo "CONFIG_FILE=$CONFIG_FILE" >> "$GITHUB_OUTPUT"
+
+      # macOS 的 sed 是 BSD 版本，需要 sed -i ''（空字符串）
+      - name: patch zotero
+        env:
+          HOST_DS: http://localhost:8080
+          HOST_ST: http://localhost:8081
+        run: |
+          sed -i '' "s#https://api.zotero.org/#$HOST_DS#g" ${{ steps.detect-config.outputs.CONFIG_FILE }}
+          sed -i '' "s#wss://stream.zotero.org/#$HOST_ST#g" ${{ steps.detect-config.outputs.CONFIG_FILE }}
+          sed -i '' "s#https://www.zotero.org/#$HOST_DS#g" ${{ steps.detect-config.outputs.CONFIG_FILE }}
+          sed -i '' "s#https://zoteroproxycheck.s3.amazonaws.com/test##g" ${{ steps.detect-config.outputs.CONFIG_FILE }}
+
+      - name: Build Zotero
+        run: npm run build
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+
+      - name: Build macOS client
+        run: |
+          app/scripts/dir_build -p m;
+          mkdir -p release;
+
+      - name: Create DMG
+        run: |
+          cd app
+          ./mac/pkg-dmg \
+            --source staging/Zotero.app \
+            --target staging/Zotero.dmg \
+            --sourcefile \
+            --volname Zotero \
+            --copy mac/DSStore:/.DS_Store \
+            --symlink /Applications:"/Drag Here to Install"
+          mv staging/Zotero.dmg ../release/Zotero_macOS.dmg
+
+      - name: get version
+        id: version
+        run: echo "ver=$(cat version | sed 's/SOURCE/114514/')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: release/Zotero_macOS.dmg
+
+  release:
+    name: Create Release
+    needs: [build-linux-win, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Linux & Windows builds
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-win-builds
+          path: release/
+
+      - name: Download macOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+          path: release/
+
+      - name: Verify artifacts
+        run: ls -lh release/
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.zip
+            release/*.dmg
+          # 使用 Linux runner 输出的 version（理论上和 macOS 一样）
+          tag_name: ${{ needs.build-linux-win.outputs.version }}
+          body: |
+            Custom build Zotero
+            
+            - Linux (x86_64)
+            - Windows (x64)
+            - macOS (.dmg)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
